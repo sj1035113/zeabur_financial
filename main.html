@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Asset Vision | 雲端資產儀表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: #ffffff; color: #202124; }
+        .google-border { border: 1px solid #dadce0; border-radius: 12px; }
+        #chart-wrapper { user-select: none; -webkit-user-select: none; }
+        .apexcharts-tooltip { display: none !important; opacity: 0 !important; pointer-events: none !important; }
+        .apexcharts-toolbar { display: none !important; }
+        #selection-pill { display: none; position: absolute; z-index: 50; pointer-events: none; }
+        .btn-range { color: #5f6368; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 6px; transition: 0.2s; }
+        .btn-range:hover { background: #f1f3f4; color: #202124; }
+        .btn-range.active { background: #e8f0fe; color: #1a73e8; }
+        #selection-box { display: none; position: absolute; top: 20px; bottom: 30px; z-index: 10; pointer-events: none; }
+        #start-line { display: none; position: absolute; top: 20px; bottom: 30px; width: 0; border-left: 2px dashed #64748b; z-index: 20; }
+        #start-line-label { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #64748b; color: white; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: bold; white-space: nowrap; }
+        #end-line { display: none; position: absolute; top: 20px; bottom: 30px; width: 0; border-left: 2px dashed #1a73e8; z-index: 20; }
+        #end-line-label { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #1a73e8; color: white; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: bold; white-space: nowrap; }
+        #loader { position: fixed; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transition: opacity 0.5s; }
+    </style>
+</head>
+<body class="p-4 md:p-10 bg-gray-50/50">
+
+    <div id="loader">
+        <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+        <div class="text-lg font-bold text-gray-400">正在同步 Google Sheets 數據...</div>
+    </div>
+
+    <div class="max-w-5xl mx-auto">
+        <div class="mb-6 flex flex-col md:flex-row justify-between items-end gap-6">
+            <div>
+                <div class="text-sm text-gray-500 font-bold mb-1 tracking-wider uppercase">最新資產總額</div>
+                <div class="flex items-baseline gap-3">
+                    <span id="header-val" class="text-4xl font-black text-gray-900 tracking-tight">--</span>
+                    <span id="header-pct" class="text-lg font-bold">--</span>
+                </div>
+            </div>
+            <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                <button onclick="changeTimeRange('1M')" id="btn-1M" class="btn-range">1M</button>
+                <button onclick="changeTimeRange('3M')" id="btn-3M" class="btn-range">3M</button>
+                <button onclick="changeTimeRange('6M')" id="btn-6M" class="btn-range">6M</button>
+                <button onclick="changeTimeRange('YTD')" id="btn-YTD" class="btn-range">YTD</button>
+                <button onclick="changeTimeRange('MAX')" id="btn-MAX" class="btn-range active">MAX</button>
+            </div>
+        </div>
+
+        <div class="google-border p-5 bg-white shadow-sm relative">
+            <div id="chart-wrapper" class="relative cursor-crosshair">
+                <div id="start-line"><div id="start-line-label">📍 起點</div></div>
+                <div id="end-line"><div id="end-line-label">🚩 終點</div></div>
+                <div id="selection-box"></div>
+
+                <div id="selection-pill">
+                    <div class="bg-white/95 backdrop-blur-md border border-gray-100 shadow-[0_12px_40px_rgb(0,0,0,0.12)] rounded-2xl p-5 min-w-[300px]">
+                        <div class="flex justify-between items-center mb-4">
+                            <span id="pill-status-badge" class="px-2.5 py-1 rounded-md text-xs font-bold tracking-wider">--</span>
+                            <span id="pill-date" class="text-[11px] font-bold text-gray-400 tracking-wider">--</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="flex items-baseline gap-1 mb-1">
+                                <span id="pill-sign" class="text-3xl font-bold"></span>
+                                <span id="pill-diff" class="text-[40px] leading-none font-black tracking-tighter">--</span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="text-xs text-gray-400 font-bold tracking-widest uppercase">區間報酬率</span>
+                                <span id="pill-pct" class="text-sm font-black px-2 py-0.5 rounded-full">--</span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-3 flex items-center justify-between border border-gray-100/80">
+                            <div class="flex flex-col text-left"><span class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">起點</span><span id="pill-val-start" class="text-sm font-bold text-gray-700">--</span></div>
+                            <div class="text-gray-300 font-bold">➔</div>
+                            <div class="flex flex-col text-right"><span class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">終點</span><span id="pill-val-end" class="text-sm font-bold text-gray-700">--</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="main-chart"></div>
+            </div>
+            <div id="brush-chart" class="mt-2 -mx-2"></div>
+        </div>
+    </div>
+
+    <script>
+        // 📍 自動生成的 Google Sheets CSV 連結
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/1CsbGzdDkYZMuMpGmwG9w2fWOfqdueW-AeT9n_J8VFVM/pub?gid=1657026728&single=true&output=csv';
+
+        let fullData = [];
+        let mainChartObj = null, brushChartObj = null;
+        let isDragging = false, startClientX = 0, startDataPoint = null, isZooming = false;
+
+        window.onload = async () => {
+            try {
+                const res = await fetch(CSV_URL);
+                if (!res.ok) throw new Error("發佈連結無效");
+                const text = await res.text();
+                fullData = parseCSV(text);
+                if (fullData.length > 0) {
+                    renderChart(fullData);
+                    document.getElementById('loader').style.opacity = '0';
+                    setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                }
+            } catch (e) {
+                document.querySelector('#loader div').innerText = "❌ 無法連動數據，請確認 Google Sheet 已「發佈到網路」並選擇 CSV 格式。";
+            }
+        };
+
+        function parseCSV(text) {
+            return text.trim().split('\n').map(line => {
+                const cols = line.split(',');
+                const dateStr = cols[0]?.replace(/"/g, '').trim();
+                const valStr = cols[1]?.replace(/"/g, '').trim();
+                const timestamp = new Date(dateStr).getTime();
+                const value = parseFloat(valStr?.replace(/,/g, ''));
+                return { x: timestamp, y: value };
+            }).filter(item => !isNaN(item.x) && !isNaN(item.y)).sort((a, b) => a.x - b.x);
+        }
+
+        function renderChart(data) {
+            const latest = data[data.length - 1], startPoint = data[0];
+            const totalDiff = latest.y - startPoint.y;
+            const totalPct = ((totalDiff / startPoint.y) * 100).toFixed(2);
+            const themeColor = totalDiff >= 0 ? '#ef4444' : '#22c55e';
+
+            const mainOptions = {
+                series: [{ name: '資產價值', data: data }],
+                chart: { id: 'mainChart', type: 'area', height: 340, toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false },
+                    events: {
+                        mouseMove: function(event, chartContext, config) {
+                            const idx = config.dataPointIndex;
+                            if (idx === -1 || typeof idx === 'undefined' || !isDragging) return;
+                            if (!startDataPoint) startDataPoint = data[idx];
+                            let endNode = data[idx], startNode = startDataPoint;
+                            if (startNode.x > endNode.x) [startNode, endNode] = [endNode, startNode];
+
+                            const diff = endNode.y - startNode.y, pct = ((diff / startNode.y) * 100).toFixed(2), isUp = diff >= 0;
+                            const pill = document.getElementById('selection-pill');
+                            pill.style.display = 'block';
+
+                            const rect = document.getElementById('chart-wrapper').getBoundingClientRect();
+                            let pLeft = (event.clientX - rect.left) + 20;
+                            if (pLeft + 320 > rect.width) pLeft = (event.clientX - rect.left) - 340;
+                            pill.style.left = pLeft + 'px';
+                            pill.style.top = Math.max(10, (event.clientY - rect.top) - 100) + 'px';
+
+                            document.getElementById('pill-status-badge').innerText = isUp ? '📈 區間獲利' : '📉 區間虧損';
+                            document.getElementById('pill-status-badge').className = `px-2.5 py-1 rounded-md text-xs font-black ${isUp ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-200'}`;
+                            document.getElementById('pill-sign').innerText = isUp ? '+' : '-';
+                            document.getElementById('pill-diff').innerText = Math.abs(diff).toLocaleString(undefined, {minimumFractionDigits: 2});
+                            document.getElementById('pill-diff').className = `text-[40px] leading-none font-black ${isUp ? 'text-red-500' : 'text-green-600'}`;
+                            document.getElementById('pill-pct').innerText = `${isUp ? '+' : ''}${pct}%`;
+                            document.getElementById('pill-pct').className = `text-sm font-black px-2.5 py-0.5 rounded-full ${isUp ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`;
+                            document.getElementById('pill-val-start').innerText = startNode.y.toLocaleString();
+                            document.getElementById('pill-val-end').innerText = endNode.y.toLocaleString();
+                            document.getElementById('pill-date').innerText = `${new Date(startNode.x).toLocaleDateString()} ~ ${new Date(endNode.x).toLocaleDateString()}`;
+                        }
+                    }
+                },
+                stroke: { curve: 'smooth', width: 3, colors: [themeColor] },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.01, colorStops: [{ offset: 0, color: themeColor, opacity: 0.3 }, { offset: 100, color: themeColor, opacity: 0 }] } },
+                xaxis: { type: 'datetime', labels: { style: { fontWeight: 600 } } },
+                yaxis: { opposite: true, labels: { formatter: v => v.toLocaleString() } },
+                tooltip: { enabled: true }
+            };
+
+            const brushOptions = {
+                series: [{ data: data }],
+                chart: { id: 'brushChart', height: 100, type: 'area', brush: { target: 'mainChart', enabled: true }, selection: { enabled: true, xaxis: { min: data[0].x, max: data[data.length-1].x } } },
+                colors: ['#cbd5e1'], fill: { type: 'solid', opacity: 0.1 }, yaxis: { show: false }, grid: { show: false }
+            };
+
+            if (mainChartObj) mainChartObj.destroy();
+            mainChartObj = new ApexCharts(document.querySelector("#main-chart"), mainOptions);
+            mainChartObj.render();
+
+            if (brushChartObj) brushChartObj.destroy();
+            brushChartObj = new ApexCharts(document.querySelector("#brush-chart"), brushOptions);
+            brushChartObj.render();
+
+            document.getElementById('header-val').innerText = latest.y.toLocaleString(undefined, {minimumFractionDigits: 2});
+            document.getElementById('header-pct').innerText = `(${totalDiff >= 0 ? '+' : ''}${totalPct}%)`;
+            document.getElementById('header-pct').className = `text-lg font-bold ${totalDiff >= 0 ? 'text-red-500' : 'text-green-600'}`;
+        }
+
+        // 縮放與拖曳邏輯
+        const wrapper = document.getElementById('chart-wrapper');
+        wrapper.addEventListener('wheel', e => {
+            e.preventDefault();
+            if (isDragging || isZooming) return;
+            let minX = mainChartObj.w.globals.minX, maxX = mainChartObj.w.globals.maxX, range = maxX - minX, factor = e.deltaY * 0.001;
+            isZooming = true;
+            mainChartObj.zoomX(minX - (range * factor), maxX + (range * factor));
+            setTimeout(() => isZooming = false, 20);
+        }, { passive: false });
+
+        wrapper.addEventListener('mousedown', e => {
+            isDragging = true; startClientX = e.clientX; startDataPoint = null;
+            const rect = wrapper.getBoundingClientRect();
+            document.getElementById('start-line').style.display = 'block';
+            document.getElementById('start-line').style.left = (e.clientX - rect.left) + 'px';
+            document.getElementById('selection-box').style.display = 'block';
+            document.getElementById('selection-box').style.left = (e.clientX - rect.left) + 'px';
+            document.getElementById('selection-box').style.width = '0px';
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const rect = wrapper.getBoundingClientRect();
+            let curX = Math.max(rect.left, Math.min(rect.right, e.clientX));
+            document.getElementById('selection-box').style.left = Math.min(startClientX, curX) - rect.left + 'px';
+            document.getElementById('selection-box').style.width = Math.abs(curX - startClientX) + 'px';
+            document.getElementById('end-line').style.display = 'block';
+            document.getElementById('end-line').style.left = (curX - rect.left) + 'px';
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            document.getElementById('selection-pill').style.display = 'none';
+            document.getElementById('start-line').style.display = 'none';
+            document.getElementById('end-line').style.display = 'none';
+            document.getElementById('selection-box').style.display = 'none';
+        });
+
+        function changeTimeRange(range) {
+            document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + range).classList.add('active');
+            const last = fullData[fullData.length - 1].x;
+            let min = new Date(last);
+            if (range === '1M') min.setMonth(min.getMonth() - 1);
+            else if (range === '3M') min.setMonth(min.getMonth() - 3);
+            else if (range === '6M') min.setMonth(min.getMonth() - 6);
+            else if (range === 'YTD') min.setMonth(0, 1);
+            else min = new Date(fullData[0].x);
+            mainChartObj.zoomX(min.getTime(), last);
+        }
+    </script>
+</body>
+</html>
