@@ -4,23 +4,31 @@
     <meta charset="UTF-8">
     <title>Asset Vision | 雲端資產儀表板</title>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: #ffffff; color: #202124; }
         .google-border { border: 1px solid #dadce0; border-radius: 12px; }
         #chart-wrapper { user-select: none; -webkit-user-select: none; }
-        .apexcharts-tooltip { display: none !important; opacity: 0 !important; pointer-events: none !important; }
+        /* 隱藏 ApexCharts 預設提示框，使用自定義面板 */
+        .apexcharts-tooltip { display: none !important; opacity: 0 !important; }
         .apexcharts-toolbar { display: none !important; }
+        
         #selection-pill { display: none; position: absolute; z-index: 50; pointer-events: none; }
+        
         .btn-range { color: #5f6368; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 6px; transition: 0.2s; }
         .btn-range:hover { background: #f1f3f4; color: #202124; }
         .btn-range.active { background: #e8f0fe; color: #1a73e8; }
+        
+        /* 選取區塊樣式 */
         #selection-box { display: none; position: absolute; top: 20px; bottom: 30px; z-index: 10; pointer-events: none; background-color: rgba(0,0,0,0.03); }
+        
         #start-line { display: none; position: absolute; top: 20px; bottom: 30px; width: 0; border-left: 2px dashed #64748b; z-index: 20; }
         #start-line-label { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #64748b; color: white; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: bold; white-space: nowrap; }
+        
         #end-line { display: none; position: absolute; top: 20px; bottom: 30px; width: 0; border-left: 2px dashed #1a73e8; z-index: 20; }
         #end-line-label { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #1a73e8; color: white; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: bold; white-space: nowrap; }
+        
         #loader { position: fixed; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transition: opacity 0.5s; }
     </style>
 </head>
@@ -28,7 +36,7 @@
 
     <div id="loader">
         <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-        <div class="text-lg font-bold text-gray-400">正在同步 Google Sheets 數據...</div>
+        <div class="text-lg font-bold text-gray-400">正在同步雲端數據...</div>
     </div>
 
     <div class="max-w-5xl mx-auto">
@@ -78,6 +86,7 @@
                         </div>
                     </div>
                 </div>
+                
                 <div id="main-chart"></div>
             </div>
             <div id="brush-chart" class="mt-2 -mx-2"></div>
@@ -85,7 +94,7 @@
     </div>
 
     <script>
-        // 📍 已替換為您提供的正式 CSV 發佈連結
+        // 📍 請務必將此網址替換成您的 Google Sheets CSV 連結
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTyoi0wSxilxefwNilXyDFp6mp_QRs2L47W5WTy_oV5cjKftC-g_8lzVbst6wLRmyg1OXojPS-Qu6WU/pub?gid=1657026728&single=true&output=csv';
 
         let fullData = [];
@@ -95,37 +104,27 @@
         window.onload = async () => {
             try {
                 const res = await fetch(CSV_URL);
-                if (!res.ok) throw new Error("數據抓取失敗");
                 const text = await res.text();
                 fullData = parseCSV(text);
-                
                 if (fullData.length > 0) {
                     renderChart(fullData);
                     document.getElementById('loader').style.opacity = '0';
                     setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
                 }
             } catch (e) {
-                console.error(e);
-                document.querySelector('#loader div').innerText = "❌ 無法抓取數據。請檢查 Google Sheet 是否確實發佈為 CSV 格式。";
+                alert("數據連動失敗，請確認 Sheets 發佈設定。");
             }
         };
 
         function parseCSV(text) {
-            const lines = text.trim().split('\n');
-            const result = [];
-            lines.forEach(line => {
+            return text.trim().split('\n').map(line => {
                 const cols = line.split(',');
-                if (cols.length >= 2) {
-                    const dateStr = cols[0].replace(/"/g, '').trim();
-                    const valStr = cols[1].replace(/"/g, '').trim();
-                    const timestamp = new Date(dateStr).getTime();
-                    const value = parseFloat(valStr.replace(/,/g, ''));
-                    if (!isNaN(timestamp) && !isNaN(value)) {
-                        result.push({ x: timestamp, y: value });
-                    }
-                }
-            });
-            return result.sort((a, b) => a.x - b.x);
+                const dateStr = cols[0]?.replace(/"/g, '').trim();
+                const valStr = cols[1]?.replace(/"/g, '').trim();
+                const timestamp = new Date(dateStr).getTime();
+                const value = parseFloat(valStr?.replace(/,/g, ''));
+                return { x: timestamp, y: value };
+            }).filter(item => !isNaN(item.x) && !isNaN(item.y)).sort((a, b) => a.x - b.x);
         }
 
         function renderChart(data) {
@@ -136,13 +135,7 @@
 
             const mainOptions = {
                 series: [{ name: '資產價值', data: data }],
-                chart: { 
-                    id: 'mainChart', 
-                    type: 'area', 
-                    height: 340, 
-                    toolbar: { show: false }, 
-                    zoom: { enabled: false }, 
-                    animations: { enabled: false },
+                chart: { id: 'mainChart', type: 'area', height: 340, toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false },
                     events: {
                         mouseMove: function(event, chartContext, config) {
                             const idx = config.dataPointIndex;
@@ -159,7 +152,7 @@
                             let pLeft = (event.clientX - rect.left) + 20;
                             if (pLeft + 320 > rect.width) pLeft = (event.clientX - rect.left) - 340;
                             pill.style.left = pLeft + 'px';
-                            pill.style.top = Math.max(10, (event.clientY - rect.top) - 100) + 'px';
+                            pill.style.top = Math.max(10, (event.clientY - rect.top) - 120) + 'px';
 
                             document.getElementById('pill-status-badge').innerText = isUp ? '📈 區間獲利' : '📉 區間虧損';
                             document.getElementById('pill-status-badge').className = `px-2.5 py-1 rounded-md text-xs font-black ${isUp ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-200'}`;
@@ -174,18 +167,26 @@
                         }
                     }
                 },
+                // ✨ 修正：確保 dataLabels 關閉，讓畫面不混亂
+                dataLabels: { enabled: false },
                 stroke: { curve: 'smooth', width: 3, colors: [themeColor] },
                 fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.01, colorStops: [{ offset: 0, color: themeColor, opacity: 0.3 }, { offset: 100, color: themeColor, opacity: 0 }] } },
-                xaxis: { type: 'datetime', labels: { style: { fontWeight: 600 } } },
+                xaxis: { type: 'datetime' },
                 yaxis: { opposite: true, labels: { formatter: v => v.toLocaleString() } },
-                grid: { borderColor: '#f1f5f9' },
                 tooltip: { enabled: true }
             };
 
             const brushOptions = {
                 series: [{ data: data }],
-                chart: { id: 'brushChart', height: 100, type: 'area', brush: { target: 'mainChart', enabled: true }, selection: { enabled: true, xaxis: { min: data[0].x, max: data[data.length-1].x } } },
-                colors: ['#cbd5e1'], fill: { type: 'solid', opacity: 0.1 }, yaxis: { show: false }, grid: { show: false }
+                chart: { id: 'brushChart', height: 100, type: 'area', brush: { target: 'mainChart', enabled: true }, 
+                    selection: { enabled: true, xaxis: { min: data[0].x, max: data[data.length-1].x } }
+                },
+                colors: ['#cbd5e1'],
+                fill: { type: 'solid', opacity: 0.1 },
+                // ✨ 修正：指定 xaxis 類型為 datetime，避免出現長數字
+                xaxis: { type: 'datetime' },
+                yaxis: { show: false }, 
+                grid: { show: false }
             };
 
             if (mainChartObj) mainChartObj.destroy();
