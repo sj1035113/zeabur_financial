@@ -35,12 +35,20 @@
         <div class="mb-6 flex flex-col md:flex-row justify-between items-end gap-6">
             <div>
                 <div class="text-sm text-gray-500 font-bold mb-1 tracking-wider uppercase">顯示區間資產價值</div>
-                <div class="flex items-baseline gap-3">
-                    <span id="header-val" class="text-4xl font-black text-gray-900 tracking-tight">--</span>
-                    <span id="header-pct" class="text-lg font-bold">--</span>
+                <div class="flex flex-col">
+                    <div class="flex items-baseline gap-3">
+                        <span id="header-val" class="text-4xl font-black text-gray-900 tracking-tight">--</span>
+                        <span id="header-pct" class="text-lg font-bold">--</span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1.5 text-sm font-bold text-gray-500">
+                        <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 uppercase tracking-tighter">Range</span>
+                        <span id="header-start-val" class="text-gray-600">--</span>
+                        <span class="text-gray-300 mx-0.5">➔</span>
+                        <span id="header-end-val" class="text-gray-600">--</span>
+                    </div>
                 </div>
             </div>
-            <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+            <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm h-fit">
                 <button onclick="changeTimeRange('1M')" id="btn-1M" class="btn-range">1M</button>
                 <button onclick="changeTimeRange('3M')" id="btn-3M" class="btn-range">3M</button>
                 <button onclick="changeTimeRange('1Y')" id="btn-1Y" class="btn-range">1Y</button>
@@ -82,8 +90,8 @@
             </div>
             <div id="brush-chart" class="mt-2 -mx-2"></div>
         </div>
-        <div class="mt-4 text-[12px] text-gray-400 text-center font-medium">
-            💡 操作提示：左鍵拖曳計算區間收益 | 滾輪縮放時間軸 | <span class="text-gray-600 font-bold underline">按住滑鼠中鍵平移圖表</span>
+        <div class="mt-4 text-[11px] text-gray-400 text-center font-medium">
+            💡 操作提示：左鍵拖曳計算區間收益 | 滾輪縮放時間軸 | <span class="text-gray-600 font-bold">按住滑鼠中鍵(滾輪)平移圖表</span>
         </div>
     </div>
 
@@ -120,7 +128,7 @@
             }).filter(item => !isNaN(item.x) && !isNaN(item.y)).sort((a, b) => a.x - b.x);
         }
 
-        // 💡 修正：動態計算顯示範圍內的收益
+        // ✨ 修正與優化：動態計算顯示範圍內的詳細數值
         function updateHeaderProfit() {
             if (!mainChartObj || !fullData.length) return;
             const min = mainChartObj.w.globals.minX;
@@ -132,9 +140,14 @@
             const start = visible[0], end = visible[visible.length - 1];
             const diff = end.y - start.y, pct = ((diff / start.y) * 100).toFixed(2), isUp = diff >= 0;
 
+            // 更新大字體總覽
             document.getElementById('header-val').innerText = end.y.toLocaleString(undefined, {minimumFractionDigits: 2});
             document.getElementById('header-pct').innerText = `(${isUp ? '+' : ''}${pct}%)`;
             document.getElementById('header-pct').className = `text-lg font-bold ${isUp ? 'text-red-500' : 'text-green-600'}`;
+            
+            // ✨ 更新「從多少變到多少」的明細
+            document.getElementById('header-start-val').innerText = start.y.toLocaleString(undefined, {minimumFractionDigits: 2});
+            document.getElementById('header-end-val').innerText = end.y.toLocaleString(undefined, {minimumFractionDigits: 2});
         }
 
         function renderChart(data) {
@@ -202,7 +215,7 @@
 
         const wrapper = document.getElementById('chart-wrapper');
 
-        // 💡 修正：滾輪縮放
+        // 滾輪縮放
         wrapper.addEventListener('wheel', e => {
             e.preventDefault();
             if (isDragging || isPanning || isZooming) return;
@@ -212,14 +225,14 @@
             setTimeout(() => { isZooming = false; updateHeaderProfit(); }, 20);
         }, { passive: false });
 
-        // 💡 新增：滑鼠中鍵平移與左鍵拖曳偵測
+        // 滑鼠中鍵平移
         wrapper.addEventListener('mousedown', e => {
-            if (e.button === 1) { // 滑鼠中鍵
+            if (e.button === 1) { 
                 e.preventDefault();
                 isPanning = true;
                 lastPanX = e.clientX;
                 wrapper.style.cursor = 'grabbing';
-            } else if (e.button === 0) { // 滑鼠左鍵
+            } else if (e.button === 0) { 
                 isDragging = true; startClientX = e.clientX; startDataPoint = null;
                 const rect = wrapper.getBoundingClientRect();
                 document.getElementById('start-line').style.display = 'block';
@@ -254,7 +267,7 @@
             }
         });
 
-        window.addEventListener('mouseup', (e) => {
+        window.addEventListener('mouseup', () => {
             if (isPanning) {
                 isPanning = false;
                 wrapper.style.cursor = 'crosshair';
