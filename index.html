@@ -10,25 +10,17 @@
         body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: #ffffff; color: #202124; }
         .google-border { border: 1px solid #dadce0; border-radius: 12px; }
         #chart-wrapper { user-select: none; -webkit-user-select: none; }
-        /* 隱藏 ApexCharts 預設提示框，使用自定義面板 */
         .apexcharts-tooltip { display: none !important; opacity: 0 !important; }
         .apexcharts-toolbar { display: none !important; }
-        
         #selection-pill { display: none; position: absolute; z-index: 50; pointer-events: none; }
-        
         .btn-range { color: #5f6368; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 6px; transition: 0.2s; }
         .btn-range:hover { background: #f1f3f4; color: #202124; }
         .btn-range.active { background: #e8f0fe; color: #1a73e8; }
-        
-        /* 選取區塊樣式 */
         #selection-box { display: none; position: absolute; top: 20px; bottom: 30px; z-index: 10; pointer-events: none; background-color: rgba(0,0,0,0.03); }
-        
         #start-line { display: none; position: absolute; top: 20px; bottom: 30px; width: 0; border-left: 2px dashed #64748b; z-index: 20; }
         #start-line-label { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #64748b; color: white; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: bold; white-space: nowrap; }
-        
         #end-line { display: none; position: absolute; top: 20px; bottom: 30px; width: 0; border-left: 2px dashed #1a73e8; z-index: 20; }
         #end-line-label { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #1a73e8; color: white; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: bold; white-space: nowrap; }
-        
         #loader { position: fixed; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transition: opacity 0.5s; }
     </style>
 </head>
@@ -42,7 +34,7 @@
     <div class="max-w-5xl mx-auto">
         <div class="mb-6 flex flex-col md:flex-row justify-between items-end gap-6">
             <div>
-                <div class="text-sm text-gray-500 font-bold mb-1 tracking-wider uppercase">最新資產總額</div>
+                <div class="text-sm text-gray-500 font-bold mb-1 tracking-wider uppercase">區間資產價值</div>
                 <div class="flex items-baseline gap-3">
                     <span id="header-val" class="text-4xl font-black text-gray-900 tracking-tight">--</span>
                     <span id="header-pct" class="text-lg font-bold">--</span>
@@ -51,8 +43,7 @@
             <div class="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
                 <button onclick="changeTimeRange('1M')" id="btn-1M" class="btn-range">1M</button>
                 <button onclick="changeTimeRange('3M')" id="btn-3M" class="btn-range">3M</button>
-                <button onclick="changeTimeRange('6M')" id="btn-6M" class="btn-range">6M</button>
-                <button onclick="changeTimeRange('YTD')" id="btn-YTD" class="btn-range">YTD</button>
+                <button onclick="changeTimeRange('1Y')" id="btn-1Y" class="btn-range">1Y</button> <button onclick="changeTimeRange('YTD')" id="btn-YTD" class="btn-range">YTD</button>
                 <button onclick="changeTimeRange('MAX')" id="btn-MAX" class="btn-range active">MAX</button>
             </div>
         </div>
@@ -70,14 +61,8 @@
                             <span id="pill-date" class="text-[11px] font-bold text-gray-400 tracking-wider">--</span>
                         </div>
                         <div class="mb-4">
-                            <div class="flex items-baseline gap-1 mb-1">
-                                <span id="pill-sign" class="text-3xl font-bold"></span>
-                                <span id="pill-diff" class="text-[40px] leading-none font-black tracking-tighter">--</span>
-                            </div>
-                            <div class="flex items-center gap-2 mt-2">
-                                <span class="text-xs text-gray-400 font-bold tracking-widest uppercase">區間報酬率</span>
-                                <span id="pill-pct" class="text-sm font-black px-2 py-0.5 rounded-full">--</span>
-                            </div>
+                            <div class="flex items-baseline gap-1 mb-1"><span id="pill-sign" class="text-3xl font-bold"></span><span id="pill-diff" class="text-[40px] leading-none font-black tracking-tighter">--</span></div>
+                            <div class="flex items-center gap-2 mt-2"><span class="text-xs text-gray-400 font-bold tracking-widest uppercase">區間報酬率</span><span id="pill-pct" class="text-sm font-black px-2 py-0.5 rounded-full">--</span></div>
                         </div>
                         <div class="bg-gray-50 rounded-xl p-3 flex items-center justify-between border border-gray-100/80">
                             <div class="flex flex-col text-left"><span class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">起點</span><span id="pill-val-start" class="text-sm font-bold text-gray-700">--</span></div>
@@ -86,7 +71,6 @@
                         </div>
                     </div>
                 </div>
-                
                 <div id="main-chart"></div>
             </div>
             <div id="brush-chart" class="mt-2 -mx-2"></div>
@@ -94,7 +78,7 @@
     </div>
 
     <script>
-        // 📍 請務必將此網址替換成您的 Google Sheets CSV 連結
+        // 📍 自動連動您的 Google Sheets
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTyoi0wSxilxefwNilXyDFp6mp_QRs2L47W5WTy_oV5cjKftC-g_8lzVbst6wLRmyg1OXojPS-Qu6WU/pub?gid=1657026728&single=true&output=csv';
 
         let fullData = [];
@@ -112,7 +96,7 @@
                     setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
                 }
             } catch (e) {
-                alert("數據連動失敗，請確認 Sheets 發佈設定。");
+                alert("數據抓取失敗，請確認 Google Sheets 發佈設定。");
             }
         };
 
@@ -127,16 +111,34 @@
             }).filter(item => !isNaN(item.x) && !isNaN(item.y)).sort((a, b) => a.x - b.x);
         }
 
-        function renderChart(data) {
-            const latest = data[data.length - 1], startPoint = data[0];
-            const totalDiff = latest.y - startPoint.y;
-            const totalPct = ((totalDiff / startPoint.y) * 100).toFixed(2);
-            const themeColor = totalDiff >= 0 ? '#ef4444' : '#22c55e';
+        // 💡 新增：動態更新頂部標題數值的函式
+        function updateHeaderProfit(min, max) {
+            const visibleData = fullData.filter(d => d.x >= min && d.x <= max);
+            if (visibleData.length < 2) return;
 
+            const start = visibleData[0];
+            const end = visibleData[visibleData.length - 1];
+            
+            const diff = end.y - start.y;
+            const pct = ((diff / start.y) * 100).toFixed(2);
+            const isUp = diff >= 0;
+
+            document.getElementById('header-val').innerText = end.y.toLocaleString(undefined, {minimumFractionDigits: 2});
+            document.getElementById('header-pct').innerText = `(${isUp ? '+' : ''}${pct}%)`;
+            document.getElementById('header-pct').className = `text-lg font-bold ${isUp ? 'text-red-500' : 'text-green-600'}`;
+        }
+
+        function renderChart(data) {
             const mainOptions = {
                 series: [{ name: '資產價值', data: data }],
                 chart: { id: 'mainChart', type: 'area', height: 340, toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false },
                     events: {
+                        // 💡 關鍵：當圖表縮放或滾動時，更新頂部標示
+                        zoomed: function(chartContext, { xaxis }) {
+                            if (xaxis.min && xaxis.max) {
+                                updateHeaderProfit(xaxis.min, xaxis.max);
+                            }
+                        },
                         mouseMove: function(event, chartContext, config) {
                             const idx = config.dataPointIndex;
                             if (idx === -1 || typeof idx === 'undefined' || !isDragging) return;
@@ -167,10 +169,9 @@
                         }
                     }
                 },
-                // ✨ 修正：確保 dataLabels 關閉，讓畫面不混亂
-                dataLabels: { enabled: false },
-                stroke: { curve: 'smooth', width: 3, colors: [themeColor] },
-                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.01, colorStops: [{ offset: 0, color: themeColor, opacity: 0.3 }, { offset: 100, color: themeColor, opacity: 0 }] } },
+                dataLabels: { enabled: false }, // 保持關閉，避免畫面混亂
+                stroke: { curve: 'smooth', width: 3, colors: ['#ef4444'] },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.01, colorStops: [{ offset: 0, color: '#ef4444', opacity: 0.3 }, { offset: 100, color: '#ef4444', opacity: 0 }] } },
                 xaxis: { type: 'datetime' },
                 yaxis: { opposite: true, labels: { formatter: v => v.toLocaleString() } },
                 tooltip: { enabled: true }
@@ -178,15 +179,8 @@
 
             const brushOptions = {
                 series: [{ data: data }],
-                chart: { id: 'brushChart', height: 100, type: 'area', brush: { target: 'mainChart', enabled: true }, 
-                    selection: { enabled: true, xaxis: { min: data[0].x, max: data[data.length-1].x } }
-                },
-                colors: ['#cbd5e1'],
-                fill: { type: 'solid', opacity: 0.1 },
-                // ✨ 修正：指定 xaxis 類型為 datetime，避免出現長數字
-                xaxis: { type: 'datetime' },
-                yaxis: { show: false }, 
-                grid: { show: false }
+                chart: { id: 'brushChart', height: 100, type: 'area', brush: { target: 'mainChart', enabled: true }, selection: { enabled: true, xaxis: { min: data[0].x, max: data[data.length-1].x } } },
+                colors: ['#cbd5e1'], fill: { type: 'solid', opacity: 0.1 }, xaxis: { type: 'datetime' }, yaxis: { show: false }, grid: { show: false }
             };
 
             if (mainChartObj) mainChartObj.destroy();
@@ -197,9 +191,8 @@
             brushChartObj = new ApexCharts(document.querySelector("#brush-chart"), brushOptions);
             brushChartObj.render();
 
-            document.getElementById('header-val').innerText = latest.y.toLocaleString(undefined, {minimumFractionDigits: 2});
-            document.getElementById('header-pct').innerText = `(${totalDiff >= 0 ? '+' : ''}${totalPct}%)`;
-            document.getElementById('header-pct').className = `text-lg font-bold ${totalDiff >= 0 ? 'text-red-500' : 'text-green-600'}`;
+            // 初始執行一次頂部更新
+            updateHeaderProfit(data[0].x, data[data.length - 1].x);
         }
 
         const wrapper = document.getElementById('chart-wrapper');
@@ -242,14 +235,18 @@
 
         function changeTimeRange(range) {
             document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + range).classList.add('active');
+            const targetBtn = document.getElementById('btn-' + range);
+            if (targetBtn) targetBtn.classList.add('active');
+
             const last = fullData[fullData.length - 1].x;
             let min = new Date(last);
+
             if (range === '1M') min.setMonth(min.getMonth() - 1);
             else if (range === '3M') min.setMonth(min.getMonth() - 3);
-            else if (range === '6M') min.setMonth(min.getMonth() - 6);
+            else if (range === '1Y') min.setFullYear(min.getFullYear() - 1); // 新增 1Y 邏輯
             else if (range === 'YTD') min.setMonth(0, 1);
             else min = new Date(fullData[0].x);
+
             mainChartObj.zoomX(min.getTime(), last);
         }
     </script>
