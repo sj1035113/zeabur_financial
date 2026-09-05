@@ -55,27 +55,33 @@ def render_growth_video(
     fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
     fig.patch.set_facecolor(background)
     ax.set_facecolor(surface)
-    fig.subplots_adjust(left=0.15, right=0.93, top=0.83, bottom=0.23)
+    fig.subplots_adjust(left=0.12, right=0.965, top=0.88, bottom=0.22)
 
     line, = ax.plot([], [], lw=4, color=gain_color, solid_capstyle="round")
     point, = ax.plot([], [], "o", color=gain_color, markersize=9)
-    date_display = fig.text(0.12, 0.145, "", fontsize=15, color=muted, weight="bold")
-    value_display = fig.text(0.12, 0.105, "", fontsize=24, color=foreground, weight="bold")
-    change_display = fig.text(0.12, 0.07, "", fontsize=16, weight="bold")
+    fig.text(0.10, 0.945, "資產成長紀錄", fontsize=23, color=foreground, weight="bold", ha="left", va="top")
+    fig.text(0.10, 0.165, "日期", fontsize=13, color=muted, weight="bold", ha="left")
+    fig.text(0.10, 0.120, "資產價值", fontsize=13, color=muted, weight="bold", ha="left")
+    fig.text(0.10, 0.075, "單日變化", fontsize=13, color=muted, weight="bold", ha="left")
+    date_display = fig.text(0.29, 0.165, "", fontsize=16, color=foreground, weight="bold", ha="left")
+    value_display = fig.text(0.29, 0.120, "", fontsize=20, color=foreground, weight="bold", ha="left")
+    change_display = fig.text(0.29, 0.075, "", fontsize=16, weight="bold", ha="left")
 
-    ax.set_title("資產成長紀錄", fontsize=23, fontweight="bold", color=foreground, pad=28, loc="left")
-    ax.set_xlabel("日期", fontsize=13, color=muted, labelpad=18)
     ax.set_ylabel("資產價值（美元）", fontsize=13, color=muted, labelpad=16)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    locator = mdates.AutoDateLocator(minticks=3, maxticks=5)
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
     ax.tick_params(colors=muted, labelsize=11)
     ax.grid(color=grid, linewidth=0.8)
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    fig.autofmt_xdate(rotation=35, ha="right")
+    fig.autofmt_xdate(rotation=20, ha="right")
 
     extra_frames = fps * hold_seconds
     total_frames = len(df) + extra_frames
+
+    displayed_ylim: list[float] = []
 
     def update(frame: int):
         current_idx = min(frame, len(df) - 1)
@@ -97,17 +103,24 @@ def render_growth_video(
         current_min = float(current["Value"].min())
         current_max = float(current["Value"].max())
         current_range = current_max - current_min or max(abs(current_min) * 0.03, 1)
-        ax.set_ylim(current_min - current_range * 0.18, current_max + current_range * 0.18)
-        date_display.set_text(date.strftime("%Y 年 %m 月 %d 日"))
-        value_display.set_text(f"${value:,.2f}")
+        target_low = current_min - current_range * 0.14
+        target_high = current_max + current_range * 0.14
+        if not displayed_ylim:
+            displayed_ylim.extend((target_low, target_high))
+        else:
+            displayed_ylim[0] += (target_low - displayed_ylim[0]) * 0.22
+            displayed_ylim[1] += (target_high - displayed_ylim[1]) * 0.22
+        ax.set_ylim(displayed_ylim)
+        date_display.set_text(date.strftime("%Y/%m/%d"))
+        value_display.set_text(f"US${value:,.2f}")
         if change > 0:
-            change_display.set_text(f"+${change:,.2f}")
+            change_display.set_text(f"+US${change:,.2f}")
             change_display.set_color("#ef4444")
         elif change < 0:
-            change_display.set_text(f"-${abs(change):,.2f}")
+            change_display.set_text(f"-US${abs(change):,.2f}")
             change_display.set_color("#16a34a")
         else:
-            change_display.set_text("$0.00")
+            change_display.set_text("US$0.00")
             change_display.set_color(muted)
         if progress and (frame % max(1, total_frames // 100) == 0 or frame == total_frames - 1):
             progress(min(94, 10 + int((frame + 1) / total_frames * 84)), "正在繪製影片畫面")

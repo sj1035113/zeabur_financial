@@ -1,5 +1,5 @@
 const GAIN_COLOR='#ef4444',LOSS_COLOR='#16a34a';
-const state={data:[],mainChart:null,detailChart:null,range:'MAX'};
+const state={data:[],mainChart:null,range:'MAX'};
 const money=value=>Number(value).toLocaleString('zh-TW',{style:'currency',currency:'USD',minimumFractionDigits:2});
 const dateText=value=>(typeof value==='number'?new Date(value):new Date(`${value}T00:00:00`)).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
 const timestamp=item=>new Date(`${item.date}T00:00:00`).getTime();
@@ -25,13 +25,11 @@ function updatePeriod(data=visibleData(state.range)){
   if(!data.length)return;const result=trend(data),start=data[0],end=data.at(-1);
   setChange(document.querySelector('#period-change'),result.change);setChange(document.querySelector('#period-rate'),result.rate,true);
   document.querySelector('#period-label').textContent={MAX:'全部資料','1M':'最近一個月','3M':'最近三個月','1Y':'最近一年',YTD:'今年以來'}[state.range]||'自訂區間';
-  document.querySelector('#detail-start').textContent=money(start.value);document.querySelector('#detail-end').textContent=money(end.value);
-  setChange(document.querySelector('#detail-change'),result.change);setChange(document.querySelector('#detail-rate'),result.rate,true);
-  document.querySelector('#performance-range').textContent=`${dateText(start.date)}－${dateText(end.date)}`;
+  document.querySelector('#displayed-period').textContent=`${dateText(start.date)}－${dateText(end.date)}`;
 }
 function chartOptions(data,height=370){
   const color=trend(data).color;
-  return{series:[{name:'資產價值',data:data.map(item=>[timestamp(item),item.value])}],chart:{type:'area',height,toolbar:{show:false},zoom:{enabled:false},animations:{enabled:false},fontFamily:'Inter, Noto Sans TC, sans-serif'},colors:[color],stroke:{curve:'smooth',width:3,colors:[color]},fill:{type:'gradient',colors:[color],gradient:{opacityFrom:.28,opacityTo:.02}},dataLabels:{enabled:false},markers:{size:0,hover:{size:5}},grid:{borderColor:'#e8edf4'},xaxis:{type:'datetime',labels:{datetimeUTC:false,style:{colors:'#657087'}}},yaxis:{opposite:true,labels:{formatter:value=>`$${Math.round(value).toLocaleString('zh-TW')}`,style:{colors:'#657087'}}},tooltip:{x:{format:'yyyy/MM/dd'},y:{formatter:value=>money(value)}},noData:{text:'目前沒有資產資料'}};
+  return{series:[{name:'資產價值',data:data.map(item=>[timestamp(item),item.value])}],chart:{type:'area',height,toolbar:{show:false},zoom:{enabled:false,autoScaleYaxis:true},animations:{enabled:false},fontFamily:'Inter, Noto Sans TC, sans-serif'},colors:[color],stroke:{curve:'smooth',width:3,colors:[color]},fill:{type:'gradient',colors:[color],gradient:{opacityFrom:.28,opacityTo:.02}},dataLabels:{enabled:false},markers:{size:0,hover:{size:5}},grid:{borderColor:'#e8edf4'},xaxis:{type:'datetime',labels:{datetimeUTC:false,style:{colors:'#657087'}}},yaxis:{opposite:true,forceNiceScale:true,labels:{formatter:value=>`$${Math.round(value).toLocaleString('zh-TW')}`,style:{colors:'#657087'}}},tooltip:{x:{format:'yyyy/MM/dd'},y:{formatter:value=>money(value)}},noData:{text:'目前沒有資產資料'}};
 }
 function applyTrendColor(chart,data){
   const color=trend(data).color;
@@ -41,23 +39,22 @@ function nearestData(targetTime){return state.data.reduce((nearest,item)=>Math.a
 function chartGrid(shell){const grid=shell.querySelector('.apexcharts-grid');return grid?grid.getBoundingClientRect():null}
 function domain(chart){return{min:chart.w.globals.minX,max:chart.w.globals.maxX}}
 function xToTime(clientX,grid,current){const ratio=Math.max(0,Math.min(1,(clientX-grid.left)/grid.width));return current.min+ratio*(current.max-current.min)}
-function showSelection(shell,startItem,endItem,chart,syncSummary){
+function axisBounds(data){const values=data.map(item=>item.value),low=Math.min(...values),high=Math.max(...values),span=high-low||Math.max(Math.abs(low)*.03,1);return{min:low-span*.12,max:high+span*.12}}
+function showSelection(startItem,endItem,chart){
   if(timestamp(startItem)>timestamp(endItem))[startItem,endItem]=[endItem,startItem];
-  const selected=dataBetween(timestamp(startItem),timestamp(endItem));if(!selected.length)return;
-  const result=trend(selected),card=shell.querySelector('.selection-result');card.classList.remove('gain','loss');card.classList.add('visible',result.change>=0?'gain':'loss');
-  card.querySelector('.selection-state').textContent=result.change>=0?'區間上漲':'區間下跌';card.querySelector('.selection-dates').textContent=`${dateText(startItem.date)}－${dateText(endItem.date)}`;
-  card.querySelector('.selection-amount').textContent=`${result.change>=0?'+':''}${money(result.change)}`;card.querySelector('.selection-rate').textContent=`${result.rate>=0?'+':''}${result.rate.toFixed(2)}%`;
-  card.querySelector('.selection-start').textContent=money(startItem.value);card.querySelector('.selection-end').textContent=money(endItem.value);
-  applyTrendColor(chart,selected);if(syncSummary)updatePeriod(selected);
+  const selected=dataBetween(timestamp(startItem),timestamp(endItem));if(selected.length<2)return;
+  const bounds=axisBounds(selected);state.range='CUSTOM';document.querySelectorAll('[data-range]').forEach(item=>item.classList.remove('active'));
+  chart.updateOptions({xaxis:{min:timestamp(startItem),max:timestamp(endItem)},yaxis:{min:bounds.min,max:bounds.max,opposite:true,forceNiceScale:true,labels:{formatter:value=>`$${Math.round(value).toLocaleString('zh-TW')}`,style:{colors:'#657087'}}}},false,false);
+  applyTrendColor(chart,selected);updatePeriod(selected);document.querySelector('#reset-range').classList.remove('hidden');
 }
-function bindChartInteraction(shellId,chart,syncSummary=false){
+function bindChartInteraction(shellId,chart){
   const shell=document.querySelector(shellId),selectionBox=shell.querySelector('.drag-selection');
   const gesture={mode:null,startX:0,currentX:0,lastX:0};
   const beginSelection=clientX=>{const grid=chartGrid(shell);if(!grid||clientX<grid.left||clientX>grid.right)return;gesture.mode='select';gesture.startX=clientX;gesture.currentX=clientX;selectionBox.style.display='block';selectionBox.style.top=`${grid.top-shell.getBoundingClientRect().top}px`;selectionBox.style.height=`${grid.height}px`;selectionBox.style.left=`${clientX-shell.getBoundingClientRect().left}px`;selectionBox.style.width='0px'};
   const moveSelection=clientX=>{const grid=chartGrid(shell);if(!grid)return;gesture.currentX=Math.max(grid.left,Math.min(grid.right,clientX));const shellLeft=shell.getBoundingClientRect().left;selectionBox.style.left=`${Math.min(gesture.startX,gesture.currentX)-shellLeft}px`;selectionBox.style.width=`${Math.abs(gesture.currentX-gesture.startX)}px`};
-  const finishSelection=()=>{if(gesture.mode!=='select')return;const grid=chartGrid(shell);if(grid&&Math.abs(gesture.currentX-gesture.startX)>5){const current=domain(chart),start=nearestData(xToTime(gesture.startX,grid,current)),end=nearestData(xToTime(gesture.currentX,grid,current));showSelection(shell,start,end,chart,syncSummary)}selectionBox.style.display='none';gesture.mode=null};
+  const finishSelection=()=>{if(gesture.mode!=='select')return;const grid=chartGrid(shell);if(grid&&Math.abs(gesture.currentX-gesture.startX)>5){const current=domain(chart),start=nearestData(xToTime(gesture.startX,grid,current)),end=nearestData(xToTime(gesture.currentX,grid,current));showSelection(start,end,chart)}selectionBox.style.display='none';gesture.mode=null};
   const pan=clientX=>{const grid=chartGrid(shell);if(!grid)return;const current=domain(chart),fullMin=timestamp(state.data[0]),fullMax=timestamp(state.data.at(-1)),shift=-(clientX-gesture.lastX)/grid.width*(current.max-current.min);let min=current.min+shift,max=current.max+shift;if(min<fullMin){max+=fullMin-min;min=fullMin}if(max>fullMax){min-=max-fullMax;max=fullMax}chart.zoomX(min,max);gesture.lastX=clientX};
-  const finishPan=()=>{gesture.mode=null;shell.style.cursor='';const current=domain(chart),visible=dataBetween(current.min,current.max);applyTrendColor(chart,visible);if(syncSummary)updatePeriod(visible)};
+  const finishPan=()=>{gesture.mode=null;shell.style.cursor='';const current=domain(chart),visible=dataBetween(current.min,current.max);if(visible.length){const bounds=axisBounds(visible);chart.updateOptions({yaxis:{min:bounds.min,max:bounds.max,opposite:true,forceNiceScale:true,labels:{formatter:value=>`$${Math.round(value).toLocaleString('zh-TW')}`,style:{colors:'#657087'}}}},false,false);applyTrendColor(chart,visible);updatePeriod(visible)}};
   shell.addEventListener('mousedown',event=>{if(event.button===0)beginSelection(event.clientX);if(event.button===1){event.preventDefault();gesture.mode='pan';gesture.lastX=event.clientX;shell.style.cursor='grabbing'}});
   shell.addEventListener('auxclick',event=>{if(event.button===1)event.preventDefault()});
   window.addEventListener('mousemove',event=>{if(gesture.mode==='select')moveSelection(event.clientX);if(gesture.mode==='pan')pan(event.clientX)});
@@ -67,8 +64,8 @@ function bindChartInteraction(shellId,chart,syncSummary=false){
   shell.addEventListener('touchend',event=>{if(gesture.mode==='select')finishSelection();else if(gesture.mode==='touch-pan'&&event.touches.length<2)finishPan()});
 }
 async function renderCharts(){
-  state.mainChart?.destroy();state.detailChart?.destroy();state.mainChart=new ApexCharts(document.querySelector('#main-chart'),chartOptions(state.data,370));state.detailChart=new ApexCharts(document.querySelector('#detail-chart'),chartOptions(state.data,510));
-  await Promise.all([state.mainChart.render(),state.detailChart.render()]);bindChartInteraction('#main-chart-shell',state.mainChart,true);bindChartInteraction('#detail-chart-shell',state.detailChart,true);
+  state.mainChart?.destroy();state.mainChart=new ApexCharts(document.querySelector('#main-chart'),chartOptions(state.data,430));
+  await state.mainChart.render();bindChartInteraction('#main-chart-shell',state.mainChart);
 }
 async function loadData(force=false){
   document.querySelector('#error-banner').classList.add('hidden');
@@ -76,8 +73,10 @@ async function loadData(force=false){
   catch(error){document.querySelector('#error-message').textContent=error.message;document.querySelector('#error-banner').classList.remove('hidden')}
   finally{const loading=document.querySelector('#loading');loading.style.opacity='0';setTimeout(()=>loading.classList.add('hidden'),300)}
 }
-document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{const view=button.dataset.view;document.querySelectorAll('[data-view]').forEach(item=>item.classList.toggle('active',item.dataset.view===view));document.querySelectorAll('.view').forEach(item=>item.classList.remove('active'));document.querySelector(`#view-${view}`).classList.add('active');const titles={overview:['資產總覽','掌握每一次資產變化'],performance:['資產走勢','查看不同期間的資產紀錄'],video:['影片製作','將資產歷程製作成直式影片'],status:['資料狀態','確認試算表同步情況']};document.querySelector('#page-eyebrow').textContent=titles[view][0];document.querySelector('#page-title').textContent=titles[view][1]}));
-document.querySelectorAll('[data-range]').forEach(button=>button.addEventListener('click',()=>{state.range=button.dataset.range;document.querySelectorAll('[data-range]').forEach(item=>item.classList.toggle('active',item===button));const data=visibleData(state.range);state.mainChart.zoomX(timestamp(data[0]),timestamp(data.at(-1)));applyTrendColor(state.mainChart,data);updatePeriod(data)}));
+document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{const view=button.dataset.view;document.querySelectorAll('[data-view]').forEach(item=>item.classList.toggle('active',item.dataset.view===view));document.querySelectorAll('.view').forEach(item=>item.classList.remove('active'));document.querySelector(`#view-${view}`).classList.add('active');const titles={overview:['資產總覽','掌握每一次資產變化'],video:['影片製作','將資產歷程製作成直式影片'],status:['資料狀態','確認試算表同步情況']};document.querySelector('#page-eyebrow').textContent=titles[view][0];document.querySelector('#page-title').textContent=titles[view][1]}));
+function setChartRange(range){state.range=range;document.querySelectorAll('[data-range]').forEach(item=>item.classList.toggle('active',item.dataset.range===range));const data=visibleData(range),bounds=axisBounds(data);state.mainChart.updateOptions({xaxis:{min:timestamp(data[0]),max:timestamp(data.at(-1))},yaxis:{min:bounds.min,max:bounds.max,opposite:true,forceNiceScale:true,labels:{formatter:value=>`$${Math.round(value).toLocaleString('zh-TW')}`,style:{colors:'#657087'}}}},false,false);applyTrendColor(state.mainChart,data);updatePeriod(data);document.querySelector('#reset-range').classList.toggle('hidden',range==='MAX')}
+document.querySelectorAll('[data-range]').forEach(button=>button.addEventListener('click',()=>setChartRange(button.dataset.range)));
+document.querySelector('#reset-range').addEventListener('click',()=>setChartRange('MAX'));
 document.querySelector('#video-range').addEventListener('change',event=>document.querySelector('#custom-dates').classList.toggle('hidden',event.target.value!=='CUSTOM'));
 document.querySelector('#refresh-button').addEventListener('click',()=>loadData(true));document.querySelector('#retry-button').addEventListener('click',()=>loadData(true));
 document.querySelector('#video-form').addEventListener('submit',async event=>{event.preventDefault();const button=document.querySelector('#generate-button'),progress=document.querySelector('#job-progress');button.disabled=true;button.textContent='正在產生影片';progress.classList.remove('hidden');const payload={date_range:document.querySelector('#video-range').value,start_date:document.querySelector('#start-date').value||null,end_date:document.querySelector('#end-date').value||null,fps:Number(document.querySelector('#fps').value),hold_seconds:Number(document.querySelector('#hold-seconds').value),resolution:document.querySelector('#resolution').value,theme:document.querySelector('#theme').value};try{const response=await fetch('/api/videos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json();if(!response.ok)throw new Error(data.detail||'無法建立影片任務。');pollJob(data.job_id)}catch(error){showJobError(error.message)}});
