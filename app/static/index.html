@@ -85,7 +85,6 @@
                 <label>畫面更新速度<select id="fps"><option value="5">5 FPS</option><option value="7" selected>7 FPS</option><option value="10">10 FPS</option></select></label>
                 <label>結尾停留<select id="hold-seconds"><option value="5">5 秒</option><option value="11" selected>11 秒</option><option value="15">15 秒</option></select></label>
                 <label>影片解析度<select id="resolution"><option value="720">720 × 1280</option><option value="1080">1080 × 1920</option></select></label>
-                <label>顯示主題<select id="theme"><option value="light">明亮</option><option value="dark">深色</option></select></label>
               </div>
               <button id="generate-button" class="primary-button" type="submit">產生影片</button>
             </form>
@@ -103,7 +102,7 @@
               <div class="preview-line"><svg viewBox="0 0 300 180" role="img" aria-label="資產成長影片預覽"><path d="M8 157 C45 148,51 127,82 133 S128 83,162 101 S210 43,242 61 S270 30,292 18" fill="none" stroke="#ef4444" stroke-width="5" stroke-linecap="round"/></svg></div>
               <div class="preview-number"><span id="preview-date">--</span><b id="preview-value">$--</b><strong id="preview-change">--</strong></div>
             </div>
-            <video id="video-player" class="hidden" controls playsinline></video>
+            <video id="video-player" class="hidden" controls playsinline preload="metadata"></video>
             <a id="download-button" class="download-button hidden" download>下載 MP4</a>
           </article>
         </div>
