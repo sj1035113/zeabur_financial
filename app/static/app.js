@@ -1,5 +1,5 @@
 const GAIN_COLOR='#ef4444',LOSS_COLOR='#16a34a';
-const state={data:[],mainChart:null,range:'MAX'};
+const state={data:[],mainChart:null,range:'MAX',dataSignature:null,interactionController:null};
 const money=value=>Number(value).toLocaleString('zh-TW',{style:'currency',currency:'USD',minimumFractionDigits:2});
 const dateText=value=>(typeof value==='number'?new Date(value):new Date(`${value}T00:00:00`)).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
 const timestamp=item=>new Date(`${item.date}T00:00:00`).getTime();
@@ -47,7 +47,7 @@ function showSelection(startItem,endItem,chart){
   chart.updateOptions({xaxis:{min:timestamp(startItem),max:timestamp(endItem)},yaxis:{min:bounds.min,max:bounds.max,opposite:true,forceNiceScale:true,labels:{formatter:value=>`$${Math.round(value).toLocaleString('zh-TW')}`,style:{colors:'#657087'}}}},false,false);
   applyTrendColor(chart,selected);updatePeriod(selected);document.querySelector('#reset-range').classList.remove('hidden');
 }
-function bindChartInteraction(shellId,chart){
+function bindChartInteraction(shellId,chart,signal){
   const shell=document.querySelector(shellId),selectionBox=shell.querySelector('.drag-selection');
   const gesture={mode:null,startX:0,currentX:0,lastX:0};
   const beginSelection=clientX=>{const grid=chartGrid(shell);if(!grid||clientX<grid.left||clientX>grid.right)return;gesture.mode='select';gesture.startX=clientX;gesture.currentX=clientX;selectionBox.style.display='block';selectionBox.style.top=`${grid.top-shell.getBoundingClientRect().top}px`;selectionBox.style.height=`${grid.height}px`;selectionBox.style.left=`${clientX-shell.getBoundingClientRect().left}px`;selectionBox.style.width='0px'};
@@ -55,20 +55,21 @@ function bindChartInteraction(shellId,chart){
   const finishSelection=()=>{if(gesture.mode!=='select')return;const grid=chartGrid(shell);if(grid&&Math.abs(gesture.currentX-gesture.startX)>5){const current=domain(chart),start=nearestData(xToTime(gesture.startX,grid,current)),end=nearestData(xToTime(gesture.currentX,grid,current));showSelection(start,end,chart)}selectionBox.style.display='none';gesture.mode=null};
   const pan=clientX=>{const grid=chartGrid(shell);if(!grid)return;const current=domain(chart),fullMin=timestamp(state.data[0]),fullMax=timestamp(state.data.at(-1)),shift=-(clientX-gesture.lastX)/grid.width*(current.max-current.min);let min=current.min+shift,max=current.max+shift;if(min<fullMin){max+=fullMin-min;min=fullMin}if(max>fullMax){min-=max-fullMax;max=fullMax}chart.zoomX(min,max);gesture.lastX=clientX};
   const finishPan=()=>{gesture.mode=null;shell.style.cursor='';const current=domain(chart),visible=dataBetween(current.min,current.max);if(visible.length){const bounds=axisBounds(visible);chart.updateOptions({yaxis:{min:bounds.min,max:bounds.max,opposite:true,forceNiceScale:true,labels:{formatter:value=>`$${Math.round(value).toLocaleString('zh-TW')}`,style:{colors:'#657087'}}}},false,false);applyTrendColor(chart,visible);updatePeriod(visible)}};
-  shell.addEventListener('mousedown',event=>{if(event.button===0)beginSelection(event.clientX);if(event.button===1){event.preventDefault();gesture.mode='pan';gesture.lastX=event.clientX;shell.style.cursor='grabbing'}});
-  shell.addEventListener('auxclick',event=>{if(event.button===1)event.preventDefault()});
-  window.addEventListener('mousemove',event=>{if(gesture.mode==='select')moveSelection(event.clientX);if(gesture.mode==='pan')pan(event.clientX)});
-  window.addEventListener('mouseup',()=>{if(gesture.mode==='select')finishSelection();else if(gesture.mode==='pan')finishPan()});
-  shell.addEventListener('touchstart',event=>{if(event.touches.length===2){event.preventDefault();gesture.mode='touch-pan';gesture.lastX=(event.touches[0].clientX+event.touches[1].clientX)/2}else if(event.touches.length===1)beginSelection(event.touches[0].clientX)},{passive:false});
-  shell.addEventListener('touchmove',event=>{if(gesture.mode==='touch-pan'&&event.touches.length===2){event.preventDefault();pan((event.touches[0].clientX+event.touches[1].clientX)/2)}else if(gesture.mode==='select'&&event.touches.length===1){event.preventDefault();moveSelection(event.touches[0].clientX)}},{passive:false});
-  shell.addEventListener('touchend',event=>{if(gesture.mode==='select')finishSelection();else if(gesture.mode==='touch-pan'&&event.touches.length<2)finishPan()});
+  shell.addEventListener('mousedown',event=>{if(event.button===0)beginSelection(event.clientX);if(event.button===1){event.preventDefault();gesture.mode='pan';gesture.lastX=event.clientX;shell.style.cursor='grabbing'}},{signal});
+  shell.addEventListener('auxclick',event=>{if(event.button===1)event.preventDefault()},{signal});
+  window.addEventListener('mousemove',event=>{if(gesture.mode==='select')moveSelection(event.clientX);if(gesture.mode==='pan')pan(event.clientX)},{signal});
+  window.addEventListener('mouseup',()=>{if(gesture.mode==='select')finishSelection();else if(gesture.mode==='pan')finishPan()},{signal});
+  shell.addEventListener('touchstart',event=>{if(event.touches.length===2){event.preventDefault();gesture.mode='touch-pan';gesture.lastX=(event.touches[0].clientX+event.touches[1].clientX)/2}else if(event.touches.length===1)beginSelection(event.touches[0].clientX)},{passive:false,signal});
+  shell.addEventListener('touchmove',event=>{if(gesture.mode==='touch-pan'&&event.touches.length===2){event.preventDefault();pan((event.touches[0].clientX+event.touches[1].clientX)/2)}else if(gesture.mode==='select'&&event.touches.length===1){event.preventDefault();moveSelection(event.touches[0].clientX)}},{passive:false,signal});
+  shell.addEventListener('touchend',event=>{if(gesture.mode==='select')finishSelection();else if(gesture.mode==='touch-pan'&&event.touches.length<2)finishPan()},{signal});
 }
 async function renderCharts(){
+  state.interactionController?.abort();state.interactionController=new AbortController();
   state.mainChart?.destroy();state.mainChart=new ApexCharts(document.querySelector('#main-chart'),chartOptions(state.data,430));
-  await state.mainChart.render();bindChartInteraction('#main-chart-shell',state.mainChart);
+  await state.mainChart.render();bindChartInteraction('#main-chart-shell',state.mainChart,state.interactionController.signal);
 }
 async function applyPortfolio(payload){
-  state.data=payload.data;document.querySelector('#current-value').textContent=money(payload.latest_value);document.querySelector('#last-updated').textContent=dateText(payload.last_date);document.querySelector('#record-count').textContent=`${payload.count} 筆資料`;document.querySelector('#sidebar-sync').textContent=payload.refreshing?'正在背景同步':`更新至 ${dateText(payload.last_date)}`;document.querySelector('#status-date').textContent=dateText(payload.last_date);document.querySelector('#status-count').textContent=`${payload.count} 筆`;document.querySelector('#preview-date').textContent=dateText(payload.last_date);document.querySelector('#preview-value').textContent=money(payload.latest_value);const latestChange=payload.data.length>1?payload.data.at(-1).value-payload.data.at(-2).value:0;setChange(document.querySelector('#preview-change'),latestChange);document.querySelector('#start-date').value=payload.first_date;document.querySelector('#start-date').min=payload.first_date;document.querySelector('#start-date').max=payload.last_date;document.querySelector('#end-date').value=payload.last_date;document.querySelector('#end-date').min=payload.first_date;document.querySelector('#end-date').max=payload.last_date;await renderCharts();updatePeriod()
+  const signature=JSON.stringify(payload.data),dataChanged=signature!==state.dataSignature;state.dataSignature=signature;state.data=payload.data;document.querySelector('#current-value').textContent=money(payload.latest_value);document.querySelector('#last-updated').textContent=dateText(payload.last_date);document.querySelector('#record-count').textContent=`${payload.count} 筆資料`;document.querySelector('#sidebar-sync').textContent=payload.refreshing?'正在背景同步':`更新至 ${dateText(payload.last_date)}`;document.querySelector('#status-date').textContent=dateText(payload.last_date);document.querySelector('#status-count').textContent=`${payload.count} 筆`;document.querySelector('#preview-date').textContent=dateText(payload.last_date);document.querySelector('#preview-value').textContent=money(payload.latest_value);const latestChange=payload.data.length>1?payload.data.at(-1).value-payload.data.at(-2).value:0;setChange(document.querySelector('#preview-change'),latestChange);document.querySelector('#start-date').value=payload.first_date;document.querySelector('#start-date').min=payload.first_date;document.querySelector('#start-date').max=payload.last_date;document.querySelector('#end-date').value=payload.last_date;document.querySelector('#end-date').min=payload.first_date;document.querySelector('#end-date').max=payload.last_date;if(dataChanged){await renderCharts();updatePeriod()}
 }
 async function loadData(force=false){
   document.querySelector('#error-banner').classList.add('hidden');
