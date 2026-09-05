@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="查看資產走勢，並將 Google 試算表資料製作成直式成長影片。">
+  <title>資產視界｜資產儀表板</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+  <div id="loading" class="loading-screen">
+    <div class="loader"></div>
+    <strong>正在同步資產資料</strong>
+    <span>資料來源：Google 試算表</span>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="資產視界首頁">
+        <span class="brand-mark">資</span>
+        <span><b>資產視界</b><small>資產儀表板</small></span>
+      </a>
+      <nav aria-label="主要導覽">
+        <button class="nav-item active" data-view="overview"><span>⌁</span>總覽</button>
+        <button class="nav-item" data-view="performance"><span>⌁</span>資產走勢</button>
+        <button class="nav-item" data-view="video"><span>▶</span>影片製作</button>
+        <button class="nav-item" data-view="status"><span>●</span>資料狀態</button>
+      </nav>
+      <div class="source-card">
+        <span class="status-dot"></span>
+        <div><b>Google 試算表</b><small id="sidebar-sync">等待同步</small></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow" id="page-eyebrow">資產總覽</p><h1 id="page-title">掌握每一次資產變化</h1></div>
+        <button id="refresh-button" class="secondary-button">重新整理</button>
+      </header>
+
+      <section id="error-banner" class="error-banner hidden" role="alert">
+        <div><b>無法載入資產資料</b><p id="error-message">請稍後再試。</p></div>
+        <button id="retry-button">重試</button>
+      </section>
+
+      <section class="view active" id="view-overview">
+        <div class="summary-grid">
+          <article class="summary-card primary"><span>目前總資產</span><strong id="current-value">--</strong><small>美元</small></article>
+          <article class="summary-card"><span>區間損益</span><strong id="period-change">--</strong><small id="period-label">全部資料</small></article>
+          <article class="summary-card"><span>區間變化率</span><strong id="period-rate">--</strong><small>依目前顯示範圍</small></article>
+          <article class="summary-card"><span>最後更新</span><strong id="last-updated">--</strong><small id="record-count">-- 筆資料</small></article>
+        </div>
+
+        <article class="panel chart-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">資產走勢</p><h2>總資產價值</h2></div>
+            <div class="range-control" aria-label="時間範圍">
+              <button data-range="1M">1M</button><button data-range="3M">3M</button>
+              <button data-range="1Y">1Y</button><button data-range="YTD">YTD</button>
+              <button data-range="MAX" class="active">MAX</button>
+            </div>
+          </div>
+          <div id="main-chart" class="main-chart"></div>
+          <div class="chart-note">移動游標查看單日數值；可拖曳選取圖表範圍。</div>
+        </article>
+      </section>
+
+      <section class="view" id="view-performance">
+        <article class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">詳細分析</p><h2>資產走勢</h2></div><span class="data-chip" id="performance-range">--</span></div>
+          <div id="detail-chart" class="detail-chart"></div>
+          <div class="comparison-grid">
+            <div><span>區間起點</span><b id="detail-start">--</b></div>
+            <div><span>區間終點</span><b id="detail-end">--</b></div>
+            <div><span>區間損益</span><b id="detail-change">--</b></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" id="view-video">
+        <div class="studio-layout">
+          <article class="panel settings-panel">
+            <div class="panel-heading"><div><p class="eyebrow">影片設定</p><h2>資產成長影片</h2></div></div>
+            <div class="source-row"><span class="status-dot"></span><div><b>Google 試算表</b><small>使用目前同步的資產資料</small></div></div>
+            <form id="video-form">
+              <label>日期範圍<select id="video-range"><option value="ALL">全部資料</option><option value="1Y">最近一年</option><option value="YTD">今年以來</option><option value="CUSTOM">自訂日期</option></select></label>
+              <div id="custom-dates" class="date-grid hidden"><label>開始日期<input id="start-date" type="date"></label><label>結束日期<input id="end-date" type="date"></label></div>
+              <div class="form-grid">
+                <label>畫面更新速度<select id="fps"><option value="5">5 FPS</option><option value="7" selected>7 FPS</option><option value="10">10 FPS</option></select></label>
+                <label>結尾停留<select id="hold-seconds"><option value="5">5 秒</option><option value="11" selected>11 秒</option><option value="15">15 秒</option></select></label>
+                <label>影片解析度<select id="resolution"><option value="720">720 × 1280</option><option value="1080">1080 × 1920</option></select></label>
+                <label>顯示主題<select id="theme"><option value="light">明亮</option><option value="dark">深色</option></select></label>
+              </div>
+              <button id="generate-button" class="primary-button" type="submit">產生影片</button>
+            </form>
+            <div id="job-progress" class="job-progress hidden" aria-live="polite">
+              <div><b id="progress-message">準備產生影片</b><span id="progress-number">0%</span></div>
+              <div class="progress-track"><span id="progress-bar"></span></div>
+              <small>影片製作期間請保持此頁開啟。</small>
+            </div>
+          </article>
+
+          <article class="phone-preview">
+            <div class="preview-top"><span>9:16 預覽</span><span>USD</span></div>
+            <div id="preview-placeholder" class="preview-content">
+              <p>資產成長紀錄</p>
+              <div class="preview-line"><svg viewBox="0 0 300 180" role="img" aria-label="資產成長影片預覽"><path d="M8 157 C45 148,51 127,82 133 S128 83,162 101 S210 43,242 61 S270 30,292 18" fill="none" stroke="#3478f6" stroke-width="5" stroke-linecap="round"/></svg></div>
+              <div class="preview-number"><span id="preview-date">--</span><b id="preview-value">$--</b><strong id="preview-change">--</strong></div>
+            </div>
+            <video id="video-player" class="hidden" controls playsinline></video>
+            <a id="download-button" class="download-button hidden" download>下載 MP4</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="view-status">
+        <article class="panel status-panel">
+          <div class="panel-heading"><div><p class="eyebrow">資料來源</p><h2>Google 試算表連線狀態</h2></div><span class="connected-badge">已連線</span></div>
+          <dl class="status-list"><div><dt>同步狀態</dt><dd>正常</dd></div><div><dt>最新資料日期</dt><dd id="status-date">--</dd></div><div><dt>有效資料筆數</dt><dd id="status-count">--</dd></div><div><dt>快取時間</dt><dd>5 分鐘</dd></div></dl>
+          <p class="privacy-note">影片會暫存在伺服器上，服務重新啟動後將自動清除。</p>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" aria-label="行動版導覽">
+    <button class="nav-item active" data-view="overview">總覽</button><button class="nav-item" data-view="performance">走勢</button><button class="nav-item" data-view="video">影片</button><button class="nav-item" data-view="status">狀態</button>
+  </nav>
+  <script src="/app.js"></script>
+</body>
+</html>
