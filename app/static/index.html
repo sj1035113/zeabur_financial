@@ -26,7 +26,6 @@
       </a>
       <nav aria-label="主要導覽">
         <button class="nav-item active" data-view="overview"><span>⌁</span>總覽</button>
-        <button class="nav-item" data-view="performance"><span>⌁</span>資產走勢</button>
         <button class="nav-item" data-view="video"><span>▶</span>影片製作</button>
         <button class="nav-item" data-view="status"><span>●</span>資料狀態</button>
       </nav>
@@ -56,45 +55,21 @@
         </div>
 
         <article class="panel chart-panel">
-          <div class="panel-heading">
+          <div class="panel-heading chart-heading">
             <div><p class="eyebrow">資產走勢</p><h2>總資產價值</h2></div>
+            <div class="chart-heading-actions">
+            <span id="displayed-period" class="displayed-period">--</span>
             <div class="range-control" aria-label="時間範圍">
               <button data-range="1M">1M</button><button data-range="3M">3M</button>
               <button data-range="1Y">1Y</button><button data-range="YTD">YTD</button>
               <button data-range="MAX" class="active">MAX</button>
-            </div>
+            </div></div>
           </div>
           <div class="chart-shell" id="main-chart-shell">
             <div id="main-chart" class="main-chart"></div>
             <div class="drag-selection"></div>
-            <div class="selection-result" aria-live="polite">
-              <div><span class="selection-state">區間變化</span><small class="selection-dates">--</small></div>
-              <strong class="selection-amount">--</strong><b class="selection-rate">--</b>
-              <p><span class="selection-start">--</span><i>→</i><span class="selection-end">--</span></p>
-            </div>
           </div>
-          <div class="chart-note">左鍵拖曳查看區間漲跌｜滑鼠中鍵平移時間｜手機單指選取、雙指平移</div>
-        </article>
-      </section>
-
-      <section class="view" id="view-performance">
-        <article class="panel">
-          <div class="panel-heading"><div><p class="eyebrow">詳細分析</p><h2>資產走勢</h2></div><span class="data-chip" id="performance-range">--</span></div>
-          <div class="chart-shell" id="detail-chart-shell">
-            <div id="detail-chart" class="detail-chart"></div>
-            <div class="drag-selection"></div>
-            <div class="selection-result" aria-live="polite">
-              <div><span class="selection-state">區間變化</span><small class="selection-dates">--</small></div>
-              <strong class="selection-amount">--</strong><b class="selection-rate">--</b>
-              <p><span class="selection-start">--</span><i>→</i><span class="selection-end">--</span></p>
-            </div>
-          </div>
-          <div class="comparison-grid">
-            <div><span>區間起點</span><b id="detail-start">--</b></div>
-            <div><span>區間終點</span><b id="detail-end">--</b></div>
-            <div><span>區間損益</span><b id="detail-change">--</b></div>
-            <div><span>區間變化率</span><b id="detail-rate">--</b></div>
-          </div>
+          <div class="chart-note"><span>左鍵拖曳放大區間｜滑鼠中鍵平移時間｜手機單指框選、雙指平移</span><button id="reset-range" class="text-button hidden">回到全部期間</button></div>
         </article>
       </section>
 
@@ -145,7 +120,7 @@
   </div>
 
   <nav class="mobile-nav" aria-label="行動版導覽">
-    <button class="nav-item active" data-view="overview">總覽</button><button class="nav-item" data-view="performance">走勢</button><button class="nav-item" data-view="video">影片</button><button class="nav-item" data-view="status">狀態</button>
+    <button class="nav-item active" data-view="overview">總覽</button><button class="nav-item" data-view="video">影片</button><button class="nav-item" data-view="status">狀態</button>
   </nav>
   <script src="/app.js"></script>
 </body>
