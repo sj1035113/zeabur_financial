@@ -26,6 +26,16 @@ jobs: dict[str, dict] = {}
 jobs_lock = threading.Lock()
 
 
+@app.middleware("http")
+async def cache_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path in ("/", "/index.html"):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    elif request.url.path in ("/app.js", "/app.css"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 class VideoRequest(BaseModel):
     date_range: str = Field(default="ALL", pattern="^(ALL|1Y|YTD|CUSTOM)$")
     start_date: str | None = None
