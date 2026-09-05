@@ -17,6 +17,7 @@ DEFAULT_CSV_URL = (
 
 _cache_lock = threading.Lock()
 _cache: tuple[float, pd.DataFrame] | None = None
+_refreshing = False
 
 
 class PortfolioDataError(RuntimeError):
@@ -51,26 +52,54 @@ def parse_portfolio_csv(content: bytes) -> pd.DataFrame:
     return cleaned
 
 
-def fetch_portfolio_data(force: bool = False) -> pd.DataFrame:
-    global _cache
-    ttl = int(os.getenv("PORTFOLIO_CACHE_SECONDS", "300"))
-    with _cache_lock:
-        if not force and _cache and time.time() - _cache[0] < ttl:
-            return _cache[1].copy()
-
+def _download_portfolio_data() -> pd.DataFrame:
     url = os.getenv("GOOGLE_SHEET_CSV_URL", DEFAULT_CSV_URL)
     try:
-        response = requests.get(url, timeout=20)
+        response = requests.get(url, timeout=(5, 15))
         response.raise_for_status()
-        df = parse_portfolio_csv(response.content)
+        return parse_portfolio_csv(response.content)
     except PortfolioDataError:
         raise
     except requests.RequestException as exc:
         raise PortfolioDataError("目前無法取得 Google 試算表資料，請稍後再試。") from exc
 
+
+def _refresh_cache() -> None:
+    global _cache, _refreshing
+    try:
+        df = _download_portfolio_data()
+        with _cache_lock:
+            _cache = (time.time(), df.copy())
+    finally:
+        with _cache_lock:
+            _refreshing = False
+
+
+def fetch_portfolio_data(force: bool = False) -> pd.DataFrame:
+    """立即回傳現有資料；快取過期時在背景更新 Google Sheet。"""
+    global _cache, _refreshing
+    ttl = int(os.getenv("PORTFOLIO_CACHE_SECONDS", "300"))
+    with _cache_lock:
+        cached = _cache
+        is_fresh = cached and time.time() - cached[0] < ttl
+        if cached and is_fresh and not force:
+            return cached[1].copy()
+        if cached:
+            if not _refreshing:
+                _refreshing = True
+                threading.Thread(target=_refresh_cache, daemon=True).start()
+            return cached[1].copy()
+
+    # 服務首次啟動、尚無任何快取時才需要等待一次下載。
+    df = _download_portfolio_data()
     with _cache_lock:
         _cache = (time.time(), df.copy())
     return df
+
+
+def portfolio_refreshing() -> bool:
+    with _cache_lock:
+        return _refreshing
 
 
 def filter_date_range(
