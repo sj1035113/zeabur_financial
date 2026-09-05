@@ -23,3 +23,11 @@
 .comparison-grid{grid-template-columns:repeat(4,1fr)}
 .preview-line svg{filter:drop-shadow(0 7px 11px rgba(239,68,68,.15))}
 @media(max-width:760px){.selection-result{top:10px;left:10px;width:250px;padding:12px}.selection-result strong{font-size:20px}.comparison-grid{grid-template-columns:1fr}}
+
+/* 總覽圖表：框選後直接縮放，不顯示額外結果卡片 */
+.main-chart{min-height:430px}
+.chart-heading-actions{display:flex;align-items:center;gap:12px}
+.displayed-period{color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}
+.chart-note{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.text-button{border:0;background:transparent;color:var(--blue);font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+@media(max-width:760px){.chart-heading-actions{width:100%;align-items:flex-start;flex-direction:column}.main-chart{min-height:340px}.chart-note{align-items:flex-start}.mobile-nav{grid-template-columns:repeat(3,1fr)}}
