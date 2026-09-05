@@ -49,15 +49,16 @@ def render_growth_video(
     foreground = "#f8fafc" if dark else "#162033"
     muted = "#94a3b8" if dark else "#64748b"
     grid = "#273449" if dark else "#e5eaf1"
-    line_color = "#3478f6"
+    gain_color = "#ef4444"
+    loss_color = "#16a34a"
 
     fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
     fig.patch.set_facecolor(background)
     ax.set_facecolor(surface)
     fig.subplots_adjust(left=0.15, right=0.93, top=0.83, bottom=0.23)
 
-    line, = ax.plot([], [], lw=4, color=line_color, solid_capstyle="round")
-    point, = ax.plot([], [], "o", color="#ef4444", markersize=9)
+    line, = ax.plot([], [], lw=4, color=gain_color, solid_capstyle="round")
+    point, = ax.plot([], [], "o", color=gain_color, markersize=9)
     date_display = fig.text(0.12, 0.145, "", fontsize=15, color=muted, weight="bold")
     value_display = fig.text(0.12, 0.105, "", fontsize=24, color=foreground, weight="bold")
     change_display = fig.text(0.12, 0.07, "", fontsize=16, weight="bold")
@@ -71,13 +72,6 @@ def render_growth_video(
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    x_all = df["Date"]
-    y_all = df["Value"]
-    x_pad = max((x_all.max() - x_all.min()) * 0.03, pd.Timedelta(days=1))
-    y_min, y_max = float(y_all.min()), float(y_all.max())
-    y_range = y_max - y_min or max(abs(y_min) * 0.1, 1)
-    ax.set_xlim(x_all.min() - x_pad, x_all.max() + x_pad)
-    ax.set_ylim(y_min - y_range * 0.18, y_max + y_range * 0.18)
     fig.autofmt_xdate(rotation=35, ha="right")
 
     extra_frames = fps * hold_seconds
@@ -89,8 +83,21 @@ def render_growth_video(
         date = current["Date"].iloc[-1]
         value = float(current["Value"].iloc[-1])
         change = float(df["Change"].iloc[current_idx])
+        total_change = value - float(current["Value"].iloc[0])
+        trend_color = gain_color if total_change >= 0 else loss_color
         line.set_data(current["Date"], current["Value"])
+        line.set_color(trend_color)
         point.set_data([date], [value])
+        point.set_color(trend_color)
+
+        first_date = current["Date"].iloc[0]
+        elapsed = date - first_date
+        x_pad = max(elapsed * 0.03, pd.Timedelta(days=1))
+        ax.set_xlim(first_date - x_pad, date + x_pad)
+        current_min = float(current["Value"].min())
+        current_max = float(current["Value"].max())
+        current_range = current_max - current_min or max(abs(current_min) * 0.03, 1)
+        ax.set_ylim(current_min - current_range * 0.18, current_max + current_range * 0.18)
         date_display.set_text(date.strftime("%Y 年 %m 月 %d 日"))
         value_display.set_text(f"${value:,.2f}")
         if change > 0:
@@ -108,7 +115,12 @@ def render_growth_video(
 
     animation = FuncAnimation(fig, update, frames=total_frames, interval=1000 / fps, blit=False)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    writer = FFMpegWriter(fps=fps, bitrate=3500, metadata={"title": "資產成長紀錄"})
+    writer = FFMpegWriter(
+        fps=fps,
+        bitrate=3500,
+        metadata={"title": "資產成長紀錄"},
+        extra_args=["-pix_fmt", "yuv420p", "-movflags", "+faststart"],
+    )
     try:
         animation.save(str(output_path), writer=writer, dpi=dpi)
     finally:

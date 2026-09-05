@@ -111,7 +111,25 @@ def download_video(job_id: str):
         job = jobs.get(job_id)
     if not job or job.get("status") != "completed" or not Path(job["path"]).exists():
         raise HTTPException(status_code=404, detail="影片尚未完成或已經過期。")
-    return FileResponse(job["path"], media_type="video/mp4", filename="資產成長紀錄.mp4")
+    return FileResponse(
+        job["path"],
+        media_type="video/mp4",
+        filename="asset-growth.mp4",
+        headers={"Cache-Control": "no-store", "Accept-Ranges": "bytes"},
+    )
+
+
+@app.get("/api/videos/{job_id}/stream")
+def stream_video(job_id: str):
+    with jobs_lock:
+        job = jobs.get(job_id)
+    if not job or job.get("status") != "completed" or not Path(job["path"]).exists():
+        raise HTTPException(status_code=404, detail="影片尚未完成或已經過期。")
+    return FileResponse(
+        job["path"],
+        media_type="video/mp4",
+        headers={"Cache-Control": "no-store", "Accept-Ranges": "bytes"},
+    )
 
 
 app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
