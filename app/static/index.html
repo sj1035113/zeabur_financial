@@ -64,19 +64,36 @@
               <button data-range="MAX" class="active">MAX</button>
             </div>
           </div>
-          <div id="main-chart" class="main-chart"></div>
-          <div class="chart-note">移動游標查看單日數值；可拖曳選取圖表範圍。</div>
+          <div class="chart-shell" id="main-chart-shell">
+            <div id="main-chart" class="main-chart"></div>
+            <div class="drag-selection"></div>
+            <div class="selection-result" aria-live="polite">
+              <div><span class="selection-state">區間變化</span><small class="selection-dates">--</small></div>
+              <strong class="selection-amount">--</strong><b class="selection-rate">--</b>
+              <p><span class="selection-start">--</span><i>→</i><span class="selection-end">--</span></p>
+            </div>
+          </div>
+          <div class="chart-note">左鍵拖曳查看區間漲跌｜滑鼠中鍵平移時間｜手機單指選取、雙指平移</div>
         </article>
       </section>
 
       <section class="view" id="view-performance">
         <article class="panel">
           <div class="panel-heading"><div><p class="eyebrow">詳細分析</p><h2>資產走勢</h2></div><span class="data-chip" id="performance-range">--</span></div>
-          <div id="detail-chart" class="detail-chart"></div>
+          <div class="chart-shell" id="detail-chart-shell">
+            <div id="detail-chart" class="detail-chart"></div>
+            <div class="drag-selection"></div>
+            <div class="selection-result" aria-live="polite">
+              <div><span class="selection-state">區間變化</span><small class="selection-dates">--</small></div>
+              <strong class="selection-amount">--</strong><b class="selection-rate">--</b>
+              <p><span class="selection-start">--</span><i>→</i><span class="selection-end">--</span></p>
+            </div>
+          </div>
           <div class="comparison-grid">
             <div><span>區間起點</span><b id="detail-start">--</b></div>
             <div><span>區間終點</span><b id="detail-end">--</b></div>
             <div><span>區間損益</span><b id="detail-change">--</b></div>
+            <div><span>區間變化率</span><b id="detail-rate">--</b></div>
           </div>
         </article>
       </section>
@@ -108,7 +125,7 @@
             <div class="preview-top"><span>9:16 預覽</span><span>USD</span></div>
             <div id="preview-placeholder" class="preview-content">
               <p>資產成長紀錄</p>
-              <div class="preview-line"><svg viewBox="0 0 300 180" role="img" aria-label="資產成長影片預覽"><path d="M8 157 C45 148,51 127,82 133 S128 83,162 101 S210 43,242 61 S270 30,292 18" fill="none" stroke="#3478f6" stroke-width="5" stroke-linecap="round"/></svg></div>
+              <div class="preview-line"><svg viewBox="0 0 300 180" role="img" aria-label="資產成長影片預覽"><path d="M8 157 C45 148,51 127,82 133 S128 83,162 101 S210 43,242 61 S270 30,292 18" fill="none" stroke="#ef4444" stroke-width="5" stroke-linecap="round"/></svg></div>
               <div class="preview-number"><span id="preview-date">--</span><b id="preview-value">$--</b><strong id="preview-change">--</strong></div>
             </div>
             <video id="video-player" class="hidden" controls playsinline></video>
