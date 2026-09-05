@@ -43,7 +43,7 @@ def render_growth_video(
 
     width, height = ((1080, 1920) if resolution == "1080" else (720, 1280))
     dpi = 100
-    dark = theme == "dark"
+    dark = False
     background = "#0b1220" if dark else "#f7f9fc"
     surface = "#111c30" if dark else "#ffffff"
     foreground = "#f8fafc" if dark else "#162033"
@@ -60,12 +60,9 @@ def render_growth_video(
     line, = ax.plot([], [], lw=4, color=gain_color, solid_capstyle="round")
     point, = ax.plot([], [], "o", color=gain_color, markersize=9)
     fig.text(0.10, 0.945, "資產成長紀錄", fontsize=23, color=foreground, weight="bold", ha="left", va="top")
-    fig.text(0.10, 0.165, "日期", fontsize=13, color=muted, weight="bold", ha="left")
-    fig.text(0.10, 0.120, "資產價值", fontsize=13, color=muted, weight="bold", ha="left")
-    fig.text(0.10, 0.075, "單日變化", fontsize=13, color=muted, weight="bold", ha="left")
-    date_display = fig.text(0.29, 0.165, "", fontsize=16, color=foreground, weight="bold", ha="left")
-    value_display = fig.text(0.29, 0.120, "", fontsize=20, color=foreground, weight="bold", ha="left")
-    change_display = fig.text(0.29, 0.075, "", fontsize=16, weight="bold", ha="left")
+    date_display = fig.text(0.10, 0.155, "", fontsize=15, color=muted, ha="left")
+    value_display = fig.text(0.10, 0.108, "", fontsize=27, color=foreground, weight="bold", ha="left")
+    change_display = fig.text(0.10, 0.070, "", fontsize=17, weight="bold", ha="left")
 
     ax.set_ylabel("資產價值（美元）", fontsize=13, color=muted, labelpad=16)
     locator = mdates.AutoDateLocator(minticks=3, maxticks=5)
@@ -78,13 +75,12 @@ def render_growth_video(
 
     fig.autofmt_xdate(rotation=20, ha="right")
 
-    extra_frames = fps * hold_seconds
-    total_frames = len(df) + extra_frames
+    total_frames = len(df)
 
     displayed_ylim: list[float] = []
 
     def update(frame: int):
-        current_idx = min(frame, len(df) - 1)
+        current_idx = frame
         current = df.iloc[: current_idx + 1]
         date = current["Date"].iloc[-1]
         value = float(current["Value"].iloc[-1])
@@ -132,7 +128,12 @@ def render_growth_video(
         fps=fps,
         bitrate=3500,
         metadata={"title": "資產成長紀錄"},
-        extra_args=["-pix_fmt", "yuv420p", "-movflags", "+faststart"],
+        extra_args=[
+            "-vf", f"tpad=stop_mode=clone:stop_duration={hold_seconds}",
+            "-preset", "veryfast",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+        ],
     )
     try:
         animation.save(str(output_path), writer=writer, dpi=dpi)
