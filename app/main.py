@@ -10,7 +10,12 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app.services.portfolio import PortfolioDataError, fetch_portfolio_data, filter_date_range
+from app.services.portfolio import (
+    PortfolioDataError,
+    fetch_portfolio_data,
+    filter_date_range,
+    portfolio_refreshing,
+)
 from app.video import render_growth_video
 
 
@@ -50,6 +55,7 @@ def portfolio(force: bool = False):
         "first_date": df["Date"].min().strftime("%Y-%m-%d"),
         "last_date": df["Date"].max().strftime("%Y-%m-%d"),
         "latest_value": round(float(df["Value"].iloc[-1]), 2),
+        "refreshing": portfolio_refreshing(),
     }
 
 
@@ -114,7 +120,7 @@ def download_video(job_id: str):
     return FileResponse(
         job["path"],
         media_type="video/mp4",
-        filename="asset-growth.mp4",
+        filename=f"asset-growth-{time.strftime('%Y%m%d')}.mp4",
         headers={"Cache-Control": "no-store", "Accept-Ranges": "bytes"},
     )
 
